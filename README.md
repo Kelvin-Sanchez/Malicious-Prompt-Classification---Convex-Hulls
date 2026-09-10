@@ -8,7 +8,7 @@ LLM adoption has made prompt-based attacks (jailbreaks, adversarial perturbation
 
 ## Approach
 
-- Prompts from three datasets (MPDD, BeaverTails, Do-Not-Answer) are embedded with OpenAI's `text-embedding-3-large`.
+- Prompts from three datasets (MPDD, BeaverTails, Do-Not-Answer) are embedded. The paper uses OpenAI's `text-embedding-3-large`; the notebook in this repo instead uses the open-source `BAAI/bge-large-en-v1.5` model via `sentence-transformers`, both to see if it would improve classification performance and so anyone can rerun the experiment without paying for API access.
 - Embeddings are reduced to 3 dimensions with PCA.
 - A convex hull is computed over each class's training points; Delaunay triangulation deterministically tests whether a new point falls inside a class's hull.
 - Outlier-removal variants strip 1, 2, and 3 standard deviations from the training set before computing the hull, to test whether trimming the envelope improves classification.
@@ -25,7 +25,7 @@ LLM adoption has made prompt-based attacks (jailbreaks, adversarial perturbation
 
 ## Stack
 
-Python, scikit-learn, SciPy (`ConvexHull`, `Delaunay`), OpenAI embeddings, UMAP, Plotly (3D visualization), pandas.
+Python, scikit-learn, SciPy (`ConvexHull`, `Delaunay`), sentence-transformers (`BAAI/bge-large-en-v1.5`), UMAP, Plotly (3D visualization), pandas.
 
 ## Future Work (from the paper)
 
