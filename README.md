@@ -6,26 +6,38 @@ Research project testing whether convex hulls can classify malicious LLM prompt 
 
 LLM adoption has made prompt-based attacks (jailbreaks, adversarial perturbations) a growing threat. Traditional classifiers (Random Forest, SVM, kNN) are effective but can be circumvented by adversarial examples. Prior work classifies with *approximate* convex hulls to manage the curse of dimensionality. This project instead computes the *exact* convex hull after reducing embeddings to 3D with PCA, to see if a geometric decision boundary can hold up as a defense.
 
-## Approach
+## Paper vs. notebook
 
-- Prompts from three datasets (MPDD, BeaverTails, Do-Not-Answer) are embedded. The paper uses OpenAI's `text-embedding-3-large`; the notebook in this repo instead uses the open-source `BAAI/bge-large-en-v1.5` model via `sentence-transformers`, both to see if it would improve classification performance and so anyone can rerun the experiment without paying for API access.
-- Embeddings are reduced to 3 dimensions with PCA.
-- A convex hull is computed over each class's training points; Delaunay triangulation deterministically tests whether a new point falls inside a class's hull.
-- Outlier-removal variants strip 1, 2, and 3 standard deviations from the training set before computing the hull, to test whether trimming the envelope improves classification.
-- Benchmarked against Logistic Regression, kNN, Random Forest, and SVM (linear and RBF) on Accuracy, Precision, Recall, F1, and ROC-AUC, with 5-fold cross-validation.
+This repo contains both the original paper and a follow-up notebook (`MaliciousClassification_CE.ipynb`) that diverges from it in several ways, not just the embedding model. They're best read as two related but distinct experiments.
 
-## Results
+### Paper (`Classification_with_CH.pdf`)
 
-- On MPDD, the baseline convex hull model hit 0.99 precision but only 0.71 recall (F1 0.83) — it rarely misclassified benign prompts as malicious, but missed a meaningful share of actual malicious ones.
-- Performance dropped sharply on BeaverTails and the combined dataset, where benign/malicious embeddings overlap heavily once reduced to 3D (accuracy fell to ~0.45–0.48 for some hull variants).
-- No convex hull variant exceeded traditional models — Random Forest and kNN both landed around 0.88–0.89 accuracy on MPDD, ahead of every hull variant.
-- Outlier removal traded precision for recall without a clear net win: aggressive removal (Outlier RM 1) boosted recall at the cost of precision and overall accuracy.
+- Datasets: MPDD, BeaverTails, and Do-Not-Answer, individually and combined.
+- Embeddings: OpenAI's `text-embedding-3-large`.
+- Convex hull method: one convex hull per class, computed on the PCA-reduced (3D) training points, plus variants that strip 1, 2, and 3 standard deviations of outliers before computing the hull (Outlier RM 1/2/3).
+- Benchmarked against Logistic Regression, kNN (k=5), Random Forest, and SVM (linear and RBF kernels), with 5-fold cross-validation.
+- Results (from the paper's tables):
+  - On MPDD, the baseline convex hull model hit 0.99 precision but only 0.71 recall (F1 0.83) — it rarely misclassified benign prompts as malicious, but missed a meaningful share of actual malicious ones.
+  - Performance dropped sharply on BeaverTails and the combined dataset, where benign/malicious embeddings overlap heavily once reduced to 3D (accuracy fell to ~0.45–0.48 for some hull variants).
+  - No convex hull variant exceeded the traditional models — Random Forest and kNN both landed around 0.88–0.89 accuracy on MPDD, ahead of every hull variant.
+  - Outlier removal traded precision for recall without a clear net win: aggressive removal (Outlier RM 1) boosted recall at the cost of precision and overall accuracy.
+  - **Takeaway:** convex hulls didn't outperform standard classifiers, but precision stayed high on MPDD specifically, where the two classes were more geometrically separable. The paper argues that under those conditions, convex hulls could still work as a defense guardrail — not a general-purpose replacement for traditional classifiers.
 
-**Takeaway:** convex hulls didn't outperform standard classifiers here, but precision stayed high on MPDD specifically, where the two classes were more geometrically separable. Under those conditions — clearly distinct classes in latent space — the paper argues convex hulls could still work as a defense guardrail; they're not a general-purpose replacement for traditional classifiers.
+### Notebook (`MaliciousClassification_CE.ipynb`)
+
+- Dataset: MPDD only — the notebook doesn't load or process BeaverTails or Do-Not-Answer.
+- Embeddings: the open-source `BAAI/bge-large-en-v1.5` model via `sentence-transformers`, instead of OpenAI's API — both to see if it changes classification performance and so anyone can rerun the experiment without paying for API access.
+- Convex hull method: different from the paper. Instead of one hull per class with statistical outlier trimming, the notebook first clusters each class with DBSCAN, then computes a convex hull (and Delaunay triangulation) per cluster:
+  - `ClusterCHClassifier` builds hulls only for benign clusters; anything falling outside every benign hull is classified malicious.
+  - `NearestClusterCHClassifier` builds hulls for both classes; if a point falls outside every hull, it's assigned to the class of its nearest hull vertex.
+- Dimensionality reduction: both PCA and UMAP (3 components each) are used and compared.
+- Benchmarked against Logistic Regression, Random Forest, and SVM — no kNN in this version.
+- No 5-fold cross-validation — this is a single train/test split.
+- The notebook has no saved cell outputs in this repo (it hasn't been executed and committed with results), so there are no notebook-specific metrics to report yet. Treat it as a work-in-progress variant of the paper's method, not a reproduction of the paper's numbers above.
 
 ## Stack
 
-Python, scikit-learn, SciPy (`ConvexHull`, `Delaunay`), sentence-transformers (`BAAI/bge-large-en-v1.5`), UMAP, Plotly (3D visualization), pandas.
+Python, scikit-learn (`DBSCAN`, `RandomForestClassifier`, `LogisticRegression`, `SVC`), SciPy (`ConvexHull`, `Delaunay`), sentence-transformers (`BAAI/bge-large-en-v1.5`), UMAP, Plotly (3D visualization), pandas.
 
 ## Future Work (from the paper)
 
