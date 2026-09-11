@@ -25,9 +25,11 @@ This repo contains both the original paper and a follow-up notebook (`MaliciousC
 
 ### Notebook (`MaliciousClassification_CE.ipynb`)
 
+A follow-up experiment, not a reproduction — it swaps in open embeddings so the experiment costs nothing to rerun, and it changes the hull-building method itself in an attempt to beat the paper's numbers rather than just match them.
+
 - Dataset: MPDD only — the notebook doesn't load or process BeaverTails or Do-Not-Answer.
 - Embeddings: the open-source `BAAI/bge-large-en-v1.5` model via `sentence-transformers`, instead of OpenAI's API — both to see if it changes classification performance and so anyone can rerun the experiment without paying for API access.
-- Convex hull method: different from the paper. Instead of one hull per class with statistical outlier trimming, the notebook first clusters each class with DBSCAN, then computes a convex hull (and Delaunay triangulation) per cluster:
+- Convex hull method: different from the paper, and the main attempted improvement. The paper computes one hull per class (with statistical outlier trimming as the only variation) and its own discussion section notes that the benign/malignant embeddings actually form several distinct clusters rather than one blob per class (see Fig. 1) — a likely source of the overlap that hurt accuracy on BeaverTails and the combined dataset. The notebook targets that directly: it first clusters each class with DBSCAN, then computes a convex hull (and Delaunay triangulation) per cluster, on the theory that tighter, per-cluster hulls should generalize better than one hull stretched around a multi-modal class:
   - `ClusterCHClassifier` builds hulls only for benign clusters; anything falling outside every benign hull is classified malicious.
   - `NearestClusterCHClassifier` builds hulls for both classes; if a point falls outside every hull, it's assigned to the class of its nearest hull vertex.
 - Dimensionality reduction: both PCA and UMAP (3 components each) are used and compared.
@@ -38,6 +40,16 @@ This repo contains both the original paper and a follow-up notebook (`MaliciousC
 ## Stack
 
 Python, scikit-learn (`DBSCAN`, `RandomForestClassifier`, `LogisticRegression`, `SVC`), SciPy (`ConvexHull`, `Delaunay`), sentence-transformers (`BAAI/bge-large-en-v1.5`), UMAP, Plotly (3D visualization), pandas.
+
+## Reproducing the notebook
+
+1. `pip install -r requirements.txt`
+2. Get a Kaggle API token (Kaggle account → Settings → Create New Token) and place `kaggle.json` in the repo root — it's gitignored, so it won't get committed.
+3. Open `MaliciousClassification_CE.ipynb` and run all cells. The first cell downloads the [MPDD dataset](https://www.kaggle.com/datasets/mohammedaminejebbar/malicious-prompt-detection-dataset-mpdd) via the Kaggle CLI and unzips it; the second caches sentence-transformer embeddings to `embeddings_cache.pkl` (also gitignored) so re-runs skip re-embedding.
+
+## License
+
+MIT — see [`LICENSE`](LICENSE).
 
 ## Future Work (from the paper)
 

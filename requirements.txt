@@ -1,0 +1,12 @@
+pandas
+numpy
+torch
+tqdm
+sentence-transformers
+datasets
+scikit-learn
+scipy
+umap-learn
+plotly
+python-dotenv
+kaggle
